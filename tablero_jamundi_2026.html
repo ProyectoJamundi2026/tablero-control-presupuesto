@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ejecución presupuestal y física - Jamundí 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Paleta del Manual de Identidad Visual de la Alcaldía de Jamundí (azul #281FD0, azul claro #384CF5, amarillo #FFB600, gris #606175, gris claro #C5C5D2) */
+:root{--brand:#281FD0;--brand2:#384CF5;--accent:#FFB600;--bg:#F2F2F6;--card:#fff;--text:#3A3A44;--muted:#606175;--line:#D9D9E3;--ok:#2E9E5B;--warn:#FFB600;--bad:#D64545;--na:#C5C5D2}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Calibri,Carlito,"Segoe UI",system-ui,sans-serif}
+header{background:var(--card);border-top:5px solid var(--accent);border-bottom:3px solid var(--brand);padding:14px 24px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+h1{font-size:20px;margin:0;color:var(--brand);font-weight:700}.id{display:flex;align-items:center;gap:14px}.id img{height:52px;width:auto}.sub{color:var(--muted);font-size:12px}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button,select,input{font:inherit;color:var(--text)}
+button{background:var(--brand);color:#fff;border:0;border-radius:6px;padding:7px 14px;cursor:pointer}button.sec{background:#fff;color:var(--brand);border:1px solid var(--brand)}button:disabled{opacity:.4}
+select,input[type=search],input[type=url]{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:4px}.dot.ok{background:var(--ok)}.dot.err{background:var(--bad)}.dot.load{background:var(--warn)}
+main{padding:20px 24px;max-width:1500px;margin:auto}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:14px}
+.box label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:3px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:10px;padding:12px 16px}.kpi:nth-child(even){border-left-color:var(--brand2)}
+.kpi span{color:var(--muted);font-size:12px}.kpi b{display:block;font-size:21px;margin:2px 0}.kpi small{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}.card h2{font-size:14px;margin:0 0 10px}
+.ch{position:relative;height:280px}.ch.t{height:520px}.wide{grid-column:1/-1}
+.alerts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.al{border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:8px;padding:10px 12px;cursor:pointer;background:#fff;text-align:left;color:var(--text)}
+.al.on{background:#FDF1F1}.al b{font-size:20px;display:block}.al small{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--line)}
+th{cursor:pointer;background:#F8F9FA;white-space:nowrap}td.n{text-align:right;white-space:nowrap}.tw{overflow-x:auto}
+.pg{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:10px}
+.tag{padding:2px 8px;border-radius:10px;font-size:12px;color:#fff;white-space:nowrap}
+#msg{background:#FFF4E5;border:1px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:none}
+@media(max-width:480px){.grid{grid-template-columns:1fr}}
+#login{position:fixed;inset:0;background:linear-gradient(160deg,#eceefb 0%,#F2F2F6 55%,#fff6dc 100%);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto}
+#login form{background:var(--card);border:1px solid var(--line);border-top:6px solid var(--accent);border-bottom:4px solid var(--brand);border-radius:14px;padding:28px 28px 24px;width:100%;max-width:380px;box-shadow:0 10px 30px rgba(40,31,208,.12);text-align:center}
+#login .esc{height:84px;width:auto;display:block;margin:0 auto 14px}
+#login .ing{display:inline-block;background:var(--brand);color:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:4px 12px;border-radius:999px;margin-bottom:10px}
+#login h2{margin:0 0 8px;font-size:21px;line-height:1.25;color:var(--brand)}#login p{margin:0 0 18px;color:var(--text);font-size:16px;font-weight:700;line-height:1.35}
+#login label{display:block;font-size:13px;margin:12px 0 4px;text-align:left;color:var(--text);font-weight:600}
+#login input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;box-sizing:border-box;color:var(--text);background:#fff}
+#login input:focus{outline:3px solid rgba(56,76,245,.25);border-color:var(--brand2)}
+#login button{margin-top:18px;width:100%;padding:12px;border:0;border-radius:8px;background:var(--brand);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+#login button:hover{background:var(--brand2)}#login button:disabled{opacity:.6;cursor:wait}
+#lerr{color:var(--bad);font-size:13px;min-height:18px;margin-top:10px}#login .pie{margin-top:14px;font-size:11px;color:var(--muted)}
+body.locked>header,body.locked>main{display:none}
+</style></head><body class="locked">
+<div id="login"><form id="lform"><img class="esc" src="https://www.jamundi.gov.co/SiteAssets/Jamundi/assets/img/logoJamundiSVGsmall.svg" alt="Escudo de la Alcaldía de Jamundí" onerror="this.style.display='none'">
+ <h2>Tablero de Monitoreo y Alertas del Presupuesto Municipal</h2><p>Ejecución y cumplimiento · Alcaldía de Jamundí · 2026</p>
+ <label for="lu">Usuario</label><input id="lu" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+ <label for="lc">Código de acceso</label><input id="lc" type="password" autocomplete="current-password" required>
+ <button id="lb" type="submit">Ingresar</button><div id="lerr" role="alert"></div><div class="pie">Cada usuario ve únicamente la información de su dependencia.</div></form></div>
+<header>
+ <div class="id"><img src="https://www.jamundi.gov.co/SiteAssets/Jamundi/assets/img/logoJamundiSVGsmall.svg" alt="Escudo de la Alcaldía de Jamundí" onerror="this.style.display='none'"><div><h1>Ejecución presupuestal y física · Jamundí 2026</h1><div class="sub"><span class="dot" id="dot"></span><span id="status">Sin conexión</span> · Corte: <span id="corte">—</span></div></div></div>
+ <div class="ctrl"><span id="quien" style="font-size:13px"></span><button id="salir" type="button">Cerrar sesión</button>
+  <label><input type="checkbox" id="auto"> Actualización automática</label>
+  <select id="interval" aria-label="Intervalo"><option value="30">Cada 30 s</option><option value="60" selected>Cada 1 min</option><option value="300">Cada 5 min</option><option value="900">Cada 15 min</option><option value="1800">Cada 30 min</option><option value="3600">Cada 1 h</option></select>
+  <button id="refresh">Actualizar ahora</button>
+ </div>
+</header>
+<main>
+ <div id="msg"></div>
+ <section class="box" aria-label="Filtros">
+  <label>Dependencia<select id="fDep"></select></label><label>Sector<select id="fSec"></select></label>
+  <label>Semáforo físico<select id="fSem"></select></label><label>Indicador principal<select id="fPri"></select></label>
+  <label>Alerta<select id="fAl"></select></label><button class="sec" id="reset">Limpiar filtros</button>
+ </section>
+ <section class="kpis" id="kpis"></section>
+ <section class="card" style="margin-bottom:14px"><h2>Alertas para revisión (clic para filtrar)</h2><div class="alerts" id="alerts"></div></section>
+ <section class="grid">
+  <div class="card"><h2>Del presupuesto programado al pago</h2><div class="ch"><canvas id="cFun"></canvas></div></div>
+  <div class="card"><h2>Avance físico por semáforo (indicadores)</h2><div class="ch"><canvas id="cSem"></canvas></div></div>
+  <div class="card"><h2>Programado, comprometido y obligado por dependencia</h2><div class="ch t"><canvas id="cDep"></canvas></div></div>
+  <div class="card"><h2>Avance físico promedio por dependencia</h2><div class="ch t"><canvas id="cFis"></canvas></div></div>
+  <div class="card"><h2>Recursos programados por sector</h2><div class="ch"><canvas id="cSec"></canvas></div></div>
+  <div class="card"><h2>Avance financiero vs. avance físico (cada punto es un indicador)</h2><div class="ch"><canvas id="cScat"></canvas></div></div>
+  <div class="card wide"><h2>Detalle por indicador</h2>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"><input type="search" id="q" placeholder="Buscar indicador o dependencia…" style="width:min(340px,100%)"><button class="sec" id="csv">Exportar CSV</button></div>
+   <div class="tw"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+   <div class="pg"><button class="sec" id="prev">Anterior</button><span id="pinfo"></span><button class="sec" id="next">Siguiente</button></div>
+  </div>
+ </section>
+</main>
+<script>
+const API_URL='https://script.google.com/macros/s/AKfycbzczT70KwgnP011gSGIF2AB-g_DHQuh4ypQ8l88n0sGpJ5vPDarZuSCU9HPueZQy_aE/exec';
+const $=id=>document.getElementById(id),css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const L=(n,d=0)=>n.toLocaleString('es-CO',{maximumFractionDigits:d});
+const money=n=>{const a=Math.abs(n);return '$'+(a>=1e12?L(n/1e12,2)+' billones':a>=1e9?L(n/1e9,1)+' mil millones':L(n/1e6)+' millones')};
+const mM=n=>'$'+L(n/1e6)+' M',pct=n=>n==null?'—':L(n,1)+'%';
+const avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null,sum=(a,k)=>a.reduce((s,r)=>s+r[k],0);
+const ALERTAS=['Comprometido sin avance físico','Comprometido mayor que lo programado','Programado sin comprometer','Compromisos sin meta programada'];
+const SEMS=['Verde','Amarillo','Rojo','Sin dato'],SC=()=>({Verde:css('--ok'),Amarillo:css('--warn'),Rojo:css('--bad'),'Sin dato':css('--na')});
+const semColor=v=>v==null?css('--na'):v>=70?css('--ok'):v>=50?css('--warn'):css('--bad');
+Chart.defaults.font.family='Calibri,Carlito,"Segoe UI",sans-serif';Chart.defaults.color='#3A3A44';
+let RAW=[],timer=null,charts={},sort={k:'prog',d:-1},page=0;const PER=12;
+const FIL={fDep:'dep',fSec:'sec',fSem:'sem',fPri:'pri'};
+const COLS=[['dep','Dependencia'],['ind','Indicador'],['mp','Meta prog.','n'],['me','Meta ejec.','n'],['prog','Programado','m'],['comp','Comprometido','m'],['obl','Obligado','m'],['fis','Avance físico','s'],['al','Alertas','a']];
+const setStatus=(t,c)=>{$('status').textContent=t;$('dot').className='dot '+(c||'')},showMsg=t=>{$('msg').style.display=t?'block':'none';$('msg').textContent=t||''};
+const getUrl=()=>window.API_URL_TEST||API_URL;
+let SES=null;const ss={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
+const call=async q=>{const u=getUrl();const r=await fetch(u+(u.includes('?')?'&':'?')+new URLSearchParams(q)+'&t='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);return r.json()};
+function entrar(s){SES=s;document.body.classList.remove('locked');$('login').style.display='none';$('quien').textContent=s.rol+(s.dependencia==='*'?' · todas las dependencias':' · '+s.dependencia);schedule();load()}
+function salir(msg){if(SES)call({action:'logout',token:SES.token}).catch(()=>{});SES=null;ss.del('ses');clearInterval(timer);RAW=[];document.body.classList.add('locked');$('login').style.display='flex';$('lc').value='';$('lerr').textContent=msg||''}
+const num=v=>v===''||v==null?null:+v;
+
+async function load(){
+ const url=getUrl();
+ if(!url||url.startsWith('PEGA_AQUI')){showMsg('Pega la URL de tu Apps Script en el cuadro de arriba y haz clic en "Guardar y conectar".');setStatus('Sin configurar','err');return}
+ setStatus('Actualizando…','load');
+ try{
+  const j=await call({action:'datos',token:SES.token});
+  if(!j.data){if(/vencida/i.test(j.error||''))return salir('Su sesión venció. Ingrese de nuevo.');throw new Error(j.error||'Respuesta sin datos')}
+  RAW=j.data.map(o=>{const r={dep:o['nombre dependencia']||'Sin dependencia',sec:o['nombre sector']||'Sin sector',ind:o['nombre indicador de producto']||'',mp:num(o['meta programada'])||0,me:num(o['meta ejecutada'])||0,prog:num(o['programacion financiera'])||0,comp:num(o.compromisos)||0,obl:num(o.obligaciones)||0,pag:num(o.pagos)||0,fis:num(o['%avance fisico']),fin:num(o['%avance financiero']),pri:o['es principal']||'',otras:o['otras dependencias (POAI)']||'',corte:String(o.corte||'').slice(0,7)};
+   r.sem=r.fis==null?'Sin dato':r.fis>=70?'Verde':r.fis>=50?'Amarillo':'Rojo';r.al=[];
+   if(r.comp>0&&!(r.fis>0))r.al.push(ALERTAS[0]);if(r.comp>r.prog)r.al.push(ALERTAS[1]);if(r.prog>0&&r.comp==0)r.al.push(ALERTAS[2]);if(r.mp==0&&r.comp>0)r.al.push(ALERTAS[3]);return r});
+  $('corte').textContent=RAW[0]?.corte||'—';buildFilters();showMsg('');
+  setStatus('Actualizado '+new Date().toLocaleTimeString('es-CO')+' · '+RAW.length+' indicadores','ok');render();
+ }catch(e){showMsg('No se pudieron cargar los datos ('+e.message+'). Abre este archivo desde tu computador (no desde la vista previa de Claude) y revisa que el Apps Script esté publicado con acceso "Cualquier persona".');setStatus('Error de conexión','err')}
+}
+function fill(id,vals){const el=$(id),c=el.value;el.innerHTML='<option value="">Todos</option>'+vals.map(v=>`<option>${v}</option>`).join('');if(vals.includes(c))el.value=c}
+function buildFilters(){for(const id in FIL)fill(id,id==='fSem'?SEMS:[...new Set(RAW.map(r=>r[FIL[id]]).filter(Boolean))].sort());fill('fAl',ALERTAS)}
+function filtered(skipAl){const f={};for(const id in FIL)f[FIL[id]]=$(id).value;const al=$('fAl').value;
+ return RAW.filter(r=>{for(const k in f)if(f[k]&&r[k]!==f[k])return false;return skipAl||!al||r.al.includes(al)})}
+const group=(a,k,fn)=>{const m={};a.forEach(r=>(m[r[k]]||=[]).push(r));return Object.entries(m).map(([n,v])=>[n,fn(v)])};
+
+function chart(id,type,labels,datasets,o={}){
+ const {tip,...rest}=o,data={labels,datasets};
+ if(charts[id]){charts[id].data=data;charts[id].update();return}
+ charts[id]=new Chart($(id),{type,data,options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1||type==='doughnut',position:'bottom'},tooltip:tip||{}},...rest}})}
+const TM={callbacks:{label:c=>(c.dataset.label?c.dataset.label+': ':'')+money(c.parsed[c.chart.options.indexAxis==='y'?'x':'y'])}};
+const TX={x:{ticks:{callback:v=>mM(v)}}},TY={y:{ticks:{callback:v=>mM(v)}}};
+
+function render(){
+ const d=filtered(),P=[css('--brand'),css('--brand2'),css('--accent'),css('--muted')];
+ const prog=sum(d,'prog'),comp=sum(d,'comp'),obl=sum(d,'obl'),pag=sum(d,'pag'),fis=avg(d.filter(r=>r.fis!=null).map(r=>r.fis)),nal=d.filter(r=>r.al.length).length;
+ const p=x=>prog?pct(x/prog*100):'—';
+ $('kpis').innerHTML=[['Programación financiera',money(prog),'Presupuesto 2026 programado'],['Compromisos',money(comp),p(comp)+' de lo programado'],['Obligaciones',money(obl),p(obl)+' de lo programado'],['Pagos',money(pag),p(pag)+' de lo programado'],['Avance físico promedio',pct(fis),'Promedio simple de indicadores'],['Indicadores',L(d.length),nal+' con alguna alerta']].map(([a,b,c])=>`<div class="kpi"><span>${a}</span><b>${b}</b><small>${c}</small></div>`).join('');
+ const base=filtered(true),sel=$('fAl').value;
+ $('alerts').innerHTML=ALERTAS.map(a=>{const f=base.filter(r=>r.al.includes(a));return `<button class="al ${sel===a?'on':''}" data-a="${a}"><b>${f.length}</b>${a}<br><small>${f.length?money(sum(f,'comp'))+' comprometidos':'Sin casos'}</small></button>`}).join('');
+ chart('cFun','bar',['Programado','Comprometido','Obligado','Pagado'],[{data:[prog,comp,obl,pag],backgroundColor:P}],{tip:TM,scales:TY});
+ const sc=SC();chart('cSem','doughnut',SEMS,[{data:SEMS.map(s=>d.filter(r=>r.sem===s).length),backgroundColor:SEMS.map(s=>sc[s])}]);
+ const deps=group(d,'dep',v=>({prog:sum(v,'prog'),comp:sum(v,'comp'),obl:sum(v,'obl'),fis:avg(v.filter(r=>r.fis!=null).map(r=>r.fis))})).sort((a,b)=>b[1].prog-a[1].prog);
+ chart('cDep','bar',deps.map(x=>x[0]),[['Programado','prog'],['Comprometido','comp'],['Obligado','obl']].map(([l,k],i)=>({label:l,data:deps.map(x=>x[1][k]),backgroundColor:P[i]})),{indexAxis:'y',tip:TM,scales:TX});
+ const df=[...deps].sort((a,b)=>(b[1].fis??-1)-(a[1].fis??-1));
+ chart('cFis','bar',df.map(x=>x[0]),[{label:'Avance físico (%)',data:df.map(x=>x[1].fis==null?0:+x[1].fis.toFixed(1)),backgroundColor:df.map(x=>semColor(x[1].fis))}],{indexAxis:'y',scales:{x:{min:0,max:100}},tip:{callbacks:{label:c=>pct(c.parsed.x)}}});
+ const secs=group(d,'sec',v=>sum(v,'prog')).sort((a,b)=>b[1]-a[1]);
+ chart('cSec','bar',secs.map(x=>x[0]),[{label:'Programado',data:secs.map(x=>x[1]),backgroundColor:P[1]}],{indexAxis:'y',tip:TM,scales:TX});
+ const pts=d.filter(r=>r.fis!=null&&r.fin!=null);
+ chart('cScat','scatter',[],[{label:'Indicadores',data:pts.map(r=>({x:r.fis,y:r.fin,r})),backgroundColor:P[0]+'AA'}],{scales:{x:{min:0,max:100,title:{display:true,text:'Avance físico (%)'}},y:{min:0,max:100,title:{display:true,text:'Avance financiero (%)'}}},tip:{callbacks:{label:c=>c.raw.r.dep+': '+c.raw.r.ind.slice(0,60)}}});
+ table(d)}
+
+function table(d){
+ const q=$('q').value.toLowerCase(),rows=d.filter(r=>!q||(r.ind+' '+r.dep).toLowerCase().includes(q));
+ rows.sort((a,b)=>{const x=sort.k==='al'?a.al.length:a[sort.k],y=sort.k==='al'?b.al.length:b[sort.k];return(x>y?1:x<y?-1:0)*sort.d});
+ const pages=Math.max(1,Math.ceil(rows.length/PER));page=Math.min(page,pages-1);const sc=SC();
+ $('thead').innerHTML='<tr>'+COLS.map(([k,l])=>`<th data-k="${k}">${l}${sort.k===k?(sort.d>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
+ $('tbody').innerHTML=rows.slice(page*PER,page*PER+PER).map(r=>'<tr>'+COLS.map(([k,,t])=>t==='m'?`<td class="n">${money(r[k])}</td>`:t==='n'?`<td class="n">${L(r[k],2)}</td>`:t==='s'?`<td><span class="tag" style="background:${sc[r.sem]}">${pct(r.fis)}</span></td>`:t==='a'?`<td title="${r.al.join(' | ')}">${r.al.length||'—'}</td>`:`<td>${r[k]}${k==='dep'&&r.otras?' <small title="También en el POAI: '+r.otras+'">+</small>':''}</td>`).join('')+'</tr>').join('')||`<tr><td colspan="${COLS.length}">No hay indicadores con estos filtros. Prueba limpiarlos.</td></tr>`;
+ $('pinfo').textContent=`Página ${page+1} de ${pages} · ${rows.length} indicadores`;$('prev').disabled=page===0;$('next').disabled=page>=pages-1;window._rows=rows}
+function schedule(){clearInterval(timer);if($('auto').checked)timer=setInterval(load,+$('interval').value*1000);localStorage.setItem('auto',$('auto').checked?'1':'0');localStorage.setItem('interval',$('interval').value)}
+
+document.addEventListener('click',e=>{const th=e.target.closest('th[data-k]');if(th){sort={k:th.dataset.k,d:sort.k===th.dataset.k?-sort.d:-1};table(filtered());return}
+ const a=e.target.closest('.al');if(a){$('fAl').value=$('fAl').value===a.dataset.a?'':a.dataset.a;page=0;render()}});
+[...Object.keys(FIL),'fAl'].forEach(id=>$(id).addEventListener('change',()=>{page=0;render()}));
+$('q').addEventListener('input',()=>{page=0;table(filtered())});
+$('prev').onclick=()=>{page--;table(filtered())};$('next').onclick=()=>{page++;table(filtered())};
+$('reset').onclick=()=>{[...Object.keys(FIL),'fAl'].forEach(id=>$(id).value='');page=0;render()};
+$('refresh').onclick=load;$('auto').onchange=$('interval').onchange=schedule;
+$('csv').onclick=()=>{const h=['Dependencia','Sector','Indicador','Meta programada','Meta ejecutada','Programado','Comprometido','Obligado','Pagado','Avance físico %','Avance financiero %','Alertas'];
+ const esc=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const csv=[h.map(esc).join(';'),...(window._rows||[]).map(r=>[r.dep,r.sec,r.ind,r.mp,r.me,r.prog,r.comp,r.obl,r.pag,r.fis,r.fin,r.al.join(' | ')].map(esc).join(';'))].join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download='ejecucion_jamundi_2026.csv';a.click()};
+$('auto').checked=localStorage.getItem('auto')==='1';if(localStorage.getItem('interval'))$('interval').value=localStorage.getItem('interval');
+$('salir').onclick=()=>salir();
+$('lform').onsubmit=async e=>{e.preventDefault();$('lerr').textContent='';$('lb').disabled=true;
+ try{const j=await call({action:'login',usuario:$('lu').value.trim(),codigo:$('lc').value});if(j.error)throw new Error(j.error);ss.set('ses',JSON.stringify(j));entrar(j)}
+ catch(x){$('lerr').textContent=x.message||'No se pudo ingresar.'}finally{$('lb').disabled=false}};
+try{const s=JSON.parse(ss.get('ses')||'null');if(s&&s.token)entrar(s)}catch(e){}
+</script></body></html>
