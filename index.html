@@ -23,7 +23,7 @@ main{padding:20px 24px;max-width:1500px;margin:auto}
 .kpi span{color:var(--muted);font-size:12px}.kpi b{display:block;font-size:21px;margin:2px 0}.kpi small{color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}.card h2{font-size:14px;margin:0 0 10px}
-.ch{position:relative;height:280px}.ch.t{height:520px}.wide{grid-column:1/-1}
+.ley{margin-top:8px;font-size:12.5px;line-height:1.35}.ley div{display:flex;gap:8px;align-items:flex-start;margin:4px 0}.ley i{flex:none;width:12px;height:12px;border-radius:3px;margin-top:3px}.ley b{white-space:nowrap}.ch{position:relative;height:280px}.ch.t{height:520px}.wide{grid-column:1/-1}
 .alerts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .al{border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:8px;padding:10px 12px;cursor:pointer;background:#fff;text-align:left;color:var(--text)}
 .al.on{background:#FDF1F1}.al b{font-size:20px;display:block}.al small{color:var(--muted)}
@@ -70,7 +70,7 @@ body.locked>header,body.locked>main{display:none}
  <section class="card" style="margin-bottom:14px"><h2>Alertas para revisión (clic para filtrar)</h2><div class="alerts" id="alerts"></div></section>
  <section class="grid">
   <div class="card"><h2>Del presupuesto programado al pago</h2><div class="ch"><canvas id="cFun"></canvas></div></div>
-  <div class="card"><h2>Avance físico por semáforo (indicadores)</h2><div class="ch"><canvas id="cSem"></canvas></div></div>
+  <div class="card"><h2>Avance físico por semáforo (indicadores)</h2><div class="ch" style="height:230px"><canvas id="cSem"></canvas></div><div id="leySem" class="ley"></div></div>
   <div class="card"><h2>Programado, comprometido y obligado por dependencia</h2><div class="ch t"><canvas id="cDep"></canvas></div></div>
   <div class="card"><h2>Avance físico promedio por dependencia</h2><div class="ch t"><canvas id="cFis"></canvas></div></div>
   <div class="card"><h2>Recursos programados por sector</h2><div class="ch"><canvas id="cSec"></canvas></div></div>
@@ -128,7 +128,7 @@ const group=(a,k,fn)=>{const m={};a.forEach(r=>(m[r[k]]||=[]).push(r));return Ob
 function chart(id,type,labels,datasets,o={}){
  const {tip,...rest}=o,data={labels,datasets};
  if(charts[id]){charts[id].data=data;charts[id].update();return}
- charts[id]=new Chart($(id),{type,data,options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1||type==='doughnut',position:'bottom'},tooltip:tip||{}},...rest}})}
+ charts[id]=new Chart($(id),{type,data,options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:id!=='cSem'&&(datasets.length>1||type==='doughnut'),position:'bottom'},tooltip:tip||{}},...rest}})}
 const TM={callbacks:{label:c=>(c.dataset.label?c.dataset.label+': ':'')+money(c.parsed[c.chart.options.indexAxis==='y'?'x':'y'])}};
 const TX={x:{ticks:{callback:v=>mM(v)}}},TY={y:{ticks:{callback:v=>mM(v)}}};
 
@@ -140,7 +140,10 @@ function render(){
  const base=filtered(true),sel=$('fAl').value;
  $('alerts').innerHTML=ALERTAS.map(a=>{const f=base.filter(r=>r.al.includes(a));return `<button class="al ${sel===a?'on':''}" data-a="${a}"><b>${f.length}</b>${a}<br><small>${f.length?money(sum(f,'comp'))+' comprometidos':'Sin casos'}</small></button>`}).join('');
  chart('cFun','bar',['Programado','Comprometido','Obligado','Pagado'],[{data:[prog,comp,obl,pag],backgroundColor:P}],{tip:TM,scales:TY});
- const sc=SC();chart('cSem','doughnut',SEMS,[{data:SEMS.map(s=>d.filter(r=>r.sem===s).length),backgroundColor:SEMS.map(s=>sc[s])}]);
+ const sc=SC();
+ const DESC={Verde:'avance físico de 70 % o más: la meta va al día',Amarillo:'avance físico de 50 % a menos de 70 %: requiere atención',Rojo:'avance físico menor de 50 %: meta rezagada',"Sin dato":'sin avance físico reportado para el indicador'};
+ $('leySem').innerHTML=SEMS.map(x=>{const n=d.filter(r=>r.sem===x).length;return `<div><i style="background:${sc[x]}"></i><span><b>${x} · ${L(n)} indicador${n===1?'':'es'}</b>: ${DESC[x]}</span></div>`}).join('');
+ chart('cSem','doughnut',SEMS,[{data:SEMS.map(s=>d.filter(r=>r.sem===s).length),backgroundColor:SEMS.map(s=>sc[s])}]);
  const deps=group(d,'dep',v=>({prog:sum(v,'prog'),comp:sum(v,'comp'),obl:sum(v,'obl'),fis:avg(v.filter(r=>r.fis!=null).map(r=>r.fis))})).sort((a,b)=>b[1].prog-a[1].prog);
  chart('cDep','bar',deps.map(x=>x[0]),[['Programado','prog'],['Comprometido','comp'],['Obligado','obl']].map(([l,k],i)=>({label:l,data:deps.map(x=>x[1][k]),backgroundColor:P[i]})),{indexAxis:'y',tip:TM,scales:TX});
  const df=[...deps].sort((a,b)=>(b[1].fis??-1)-(a[1].fis??-1));
