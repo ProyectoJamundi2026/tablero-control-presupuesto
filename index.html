@@ -45,6 +45,7 @@ th{cursor:pointer;background:#F8F9FA;white-space:nowrap}td.n{text-align:right;wh
 #login button:hover{background:var(--brand2)}#login button:disabled{opacity:.6;cursor:wait}
 #lerr{color:var(--bad);font-size:13px;min-height:18px;margin-top:10px}#login .pie{margin-top:14px;font-size:11px;color:var(--muted)}
 body.locked>header,body.locked>main{display:none}
+#vacio{background:#FFF4E5;border:1px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:none}.ley.t{margin-top:10px}.ley p{margin:4px 0}
 </style></head><body class="locked">
 <div id="login"><form id="lform"><img class="esc" src="https://www.jamundi.gov.co/SiteAssets/Jamundi/assets/img/logoJamundiSVGsmall.svg" alt="Escudo de la Alcaldía de Jamundí" onerror="this.style.display='none'">
  <h2>Tablero de Monitoreo y Alertas del Presupuesto Municipal</h2><p>Ejecución y cumplimiento · Alcaldía de Jamundí · 2026</p>
@@ -61,6 +62,7 @@ body.locked>header,body.locked>main{display:none}
 </header>
 <main>
  <div id="msg"></div>
+ <div id="vacio" role="status">No hay datos para esta combinación de filtros. Use «Limpiar filtros» o cambie una de las opciones.</div>
  <section class="box" aria-label="Filtros">
   <label>Dependencia<select id="fDep"></select></label><label>Sector<select id="fSec"></select></label>
   <label>Semáforo físico<select id="fSem"></select></label><label>Indicador principal<select id="fPri"></select></label>
@@ -69,12 +71,12 @@ body.locked>header,body.locked>main{display:none}
  <section class="kpis" id="kpis"></section>
  <section class="card" style="margin-bottom:14px"><h2>Alertas para revisión (clic para filtrar)</h2><div class="alerts" id="alerts"></div></section>
  <section class="grid">
-  <div class="card"><h2>Del presupuesto programado al pago</h2><div class="ch"><canvas id="cFun"></canvas></div></div>
+  <div class="card"><h2>Del presupuesto programado al pago</h2><div class="ch" style="height:230px"><canvas id="cFun"></canvas></div><div id="leyFun" class="ley"></div></div>
   <div class="card"><h2>Avance físico por semáforo (indicadores)</h2><div class="ch" style="height:230px"><canvas id="cSem"></canvas></div><div id="leySem" class="ley"></div></div>
   <div class="card"><h2>Programado, comprometido y obligado por dependencia</h2><div class="ch t"><canvas id="cDep"></canvas></div></div>
-  <div class="card"><h2>Avance físico promedio por dependencia</h2><div class="ch t"><canvas id="cFis"></canvas></div></div>
-  <div class="card"><h2>Recursos programados por sector</h2><div class="ch"><canvas id="cSec"></canvas></div></div>
-  <div class="card"><h2>Avance financiero vs. avance físico (cada punto es un indicador)</h2><div class="ch"><canvas id="cScat"></canvas></div></div>
+  <div class="card"><h2>Avance físico promedio por dependencia</h2><div class="ch t"><canvas id="cFis"></canvas></div><div id="leyFis" class="ley t"></div></div>
+  <div class="card"><h2>Recursos programados por sector</h2><div class="ch"><canvas id="cSec"></canvas></div><div id="leySec" class="ley t"></div></div>
+  <div class="card"><h2>Avance financiero vs. avance físico (cada punto es un indicador)</h2><div class="ch"><canvas id="cScat"></canvas></div><div id="leyScat" class="ley t"></div></div>
   <div class="card wide"><h2>Detalle por indicador</h2>
    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"><input type="search" id="q" placeholder="Buscar indicador o dependencia…" style="width:min(340px,100%)"><button class="sec" id="csv">Exportar CSV</button></div>
    <div class="tw"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
@@ -120,7 +122,11 @@ async function load(){
  }catch(e){showMsg('No se pudieron cargar los datos ('+e.message+'). Abre este archivo desde tu computador (no desde la vista previa de Claude) y revisa que el Apps Script esté publicado con acceso "Cualquier persona".');setStatus('Error de conexión','err')}
 }
 function fill(id,vals){const el=$(id),c=el.value;el.innerHTML='<option value="">Todos</option>'+vals.map(v=>`<option>${v}</option>`).join('');if(vals.includes(c))el.value=c}
-function buildFilters(){for(const id in FIL)fill(id,id==='fSem'?SEMS:[...new Set(RAW.map(r=>r[FIL[id]]).filter(Boolean))].sort());fill('fAl',ALERTAS)}
+function facets(){for(let pass=0;pass<2;pass++)for(const id in FIL){const k=FIL[id];
+  const rows=RAW.filter(r=>{for(const j in FIL)if(j!==id&&$(j).value&&r[FIL[j]]!==$(j).value)return false;return true});
+  const vals=[...new Set(rows.map(r=>r[k]).filter(Boolean))];
+  fill(id,id==='fSem'?SEMS.filter(x=>vals.includes(x)):vals.sort())}}
+function buildFilters(){fill('fAl',ALERTAS);facets()}
 function filtered(skipAl){const f={};for(const id in FIL)f[FIL[id]]=$(id).value;const al=$('fAl').value;
  return RAW.filter(r=>{for(const k in f)if(f[k]&&r[k]!==f[k])return false;return skipAl||!al||r.al.includes(al)})}
 const group=(a,k,fn)=>{const m={};a.forEach(r=>(m[r[k]]||=[]).push(r));return Object.entries(m).map(([n,v])=>[n,fn(v)])};
@@ -130,28 +136,37 @@ function chart(id,type,labels,datasets,o={}){
  if(charts[id]){charts[id].data=data;charts[id].update();return}
  charts[id]=new Chart($(id),{type,data,options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:id!=='cSem'&&(datasets.length>1||type==='doughnut'),position:'bottom'},tooltip:tip||{}},...rest}})}
 const TM={callbacks:{label:c=>(c.dataset.label?c.dataset.label+': ':'')+money(c.parsed[c.chart.options.indexAxis==='y'?'x':'y'])}};
+const DEF={Programado:'dinero asignado en el presupuesto 2026',Comprometido:'dinero ya reservado en contratos u otros compromisos',Obligado:'compromisos cuyo bien o servicio ya se recibió y debe pagarse',Pagado:'dinero que ya salió de la tesorería'};
+const TD={callbacks:{label:c=>[(c.dataset.label||'')+': '+money(c.parsed.x),DEF[c.dataset.label]||'']}};
 const TX={x:{ticks:{callback:v=>mM(v)}}},TY={y:{ticks:{callback:v=>mM(v)}}};
 
 function render(){
  const d=filtered(),P=[css('--brand'),css('--brand2'),css('--accent'),css('--muted')];
+ $('vacio').style.display=d.length?'none':'block';
  const prog=sum(d,'prog'),comp=sum(d,'comp'),obl=sum(d,'obl'),pag=sum(d,'pag'),fis=avg(d.filter(r=>r.fis!=null).map(r=>r.fis)),nal=d.filter(r=>r.al.length).length;
  const p=x=>prog?pct(x/prog*100):'—';
  $('kpis').innerHTML=[['Programación financiera',money(prog),'Presupuesto 2026 programado'],['Compromisos',money(comp),p(comp)+' de lo programado'],['Obligaciones',money(obl),p(obl)+' de lo programado'],['Pagos',money(pag),p(pag)+' de lo programado'],['Avance físico promedio',pct(fis),'Promedio simple de indicadores'],['Indicadores',L(d.length),nal+' con alguna alerta']].map(([a,b,c])=>`<div class="kpi"><span>${a}</span><b>${b}</b><small>${c}</small></div>`).join('');
  const base=filtered(true),sel=$('fAl').value;
  $('alerts').innerHTML=ALERTAS.map(a=>{const f=base.filter(r=>r.al.includes(a));return `<button class="al ${sel===a?'on':''}" data-a="${a}"><b>${f.length}</b>${a}<br><small>${f.length?money(sum(f,'comp'))+' comprometidos':'Sin casos'}</small></button>`}).join('');
  chart('cFun','bar',['Programado','Comprometido','Obligado','Pagado'],[{data:[prog,comp,obl,pag],backgroundColor:P}],{tip:TM,scales:TY});
+ $('leyFun').innerHTML=[['Programado',prog],['Comprometido',comp],['Obligado',obl],['Pagado',pag]].map(([n,v],i)=>`<div><i style="background:${P[i]}"></i><span><b>${n} · ${money(v)}</b>: ${DEF[n]}</span></div>`).join('');
  const sc=SC();
  const DESC={Verde:'avance físico de 70 % o más: la meta va al día',Amarillo:'avance físico de 50 % a menos de 70 %: requiere atención',Rojo:'avance físico menor de 50 %: meta rezagada',"Sin dato":'sin avance físico reportado para el indicador'};
  $('leySem').innerHTML=SEMS.map(x=>{const n=d.filter(r=>r.sem===x).length;return `<div><i style="background:${sc[x]}"></i><span><b>${x} · ${L(n)} indicador${n===1?'':'es'}</b>: ${DESC[x]}</span></div>`}).join('');
  chart('cSem','doughnut',SEMS,[{data:SEMS.map(s=>d.filter(r=>r.sem===s).length),backgroundColor:SEMS.map(s=>sc[s])}]);
  const deps=group(d,'dep',v=>({prog:sum(v,'prog'),comp:sum(v,'comp'),obl:sum(v,'obl'),fis:avg(v.filter(r=>r.fis!=null).map(r=>r.fis))})).sort((a,b)=>b[1].prog-a[1].prog);
- chart('cDep','bar',deps.map(x=>x[0]),[['Programado','prog'],['Comprometido','comp'],['Obligado','obl']].map(([l,k],i)=>({label:l,data:deps.map(x=>x[1][k]),backgroundColor:P[i]})),{indexAxis:'y',tip:TM,scales:TX});
+ chart('cDep','bar',deps.map(x=>x[0]),[['Programado','prog'],['Comprometido','comp'],['Obligado','obl']].map(([l,k],i)=>({label:l,data:deps.map(x=>x[1][k]),backgroundColor:[P[0],'#8B97FF',P[2]][i]})),{indexAxis:'y',tip:TD,scales:TX});
  const df=[...deps].sort((a,b)=>(b[1].fis??-1)-(a[1].fis??-1));
- chart('cFis','bar',df.map(x=>x[0]),[{label:'Avance físico (%)',data:df.map(x=>x[1].fis==null?0:+x[1].fis.toFixed(1)),backgroundColor:df.map(x=>semColor(x[1].fis))}],{indexAxis:'y',scales:{x:{min:0,max:100}},tip:{callbacks:{label:c=>pct(c.parsed.x)}}});
+ chart('cFis','bar',df.map(x=>x[0]),[{label:'Avance físico (%)',data:df.map(x=>x[1].fis==null?0:+x[1].fis.toFixed(1)),backgroundColor:df.map(x=>semColor(x[1].fis))}],{indexAxis:'y',scales:{x:{min:0,max:100}},tip:{callbacks:{label:c=>[pct(c.parsed.x),'promedio simple de sus indicadores']}}});
+ const conF=df.filter(x=>x[1].fis!=null);
+ $('leyFis').innerHTML=!conF.length?'<p>Sin avance físico reportado para esta selección.</p>':'<p><b>¿Qué es?</b> El promedio simple del porcentaje de avance de las metas de cada dependencia (no se pondera por presupuesto). Verde: 70 % o más; amarillo: 50 % a menos de 70 %; rojo: menos de 50 %.</p><p>'+(conF.length===1?`${conF[0][0]}: ${pct(conF[0][1].fis)} de avance físico promedio.`:`Promedio de la selección: ${pct(fis)}. Mayor avance: ${conF[0][0]} (${pct(conF[0][1].fis)}). Menor avance: ${conF[conF.length-1][0]} (${pct(conF[conF.length-1][1].fis)}).`)+'</p>';
  const secs=group(d,'sec',v=>sum(v,'prog')).sort((a,b)=>b[1]-a[1]);
+ $('leySec').innerHTML=!prog?'<p>Sin recursos programados para esta selección.</p>':'<p>'+(secs.length===1?`Todo el presupuesto programado (${money(prog)}) corresponde al sector ${secs[0][0]}.`:`Se programaron ${money(prog)} distribuidos en ${secs.length} sectores. El mayor es ${secs[0][0]} con ${money(secs[0][1])} (${pct(secs[0][1]/prog*100)}).`)+'</p>';
  chart('cSec','bar',secs.map(x=>x[0]),[{label:'Programado',data:secs.map(x=>x[1]),backgroundColor:P[1]}],{indexAxis:'y',tip:TM,scales:TX});
  const pts=d.filter(r=>r.fis!=null&&r.fin!=null);
- chart('cScat','scatter',[],[{label:'Indicadores',data:pts.map(r=>({x:r.fis,y:r.fin,r})),backgroundColor:P[0]+'AA'}],{scales:{x:{min:0,max:100,title:{display:true,text:'Avance físico (%)'}},y:{min:0,max:100,title:{display:true,text:'Avance financiero (%)'}}},tip:{callbacks:{label:c=>c.raw.r.dep+': '+c.raw.r.ind.slice(0,60)}}});
+ chart('cScat','scatter',[],[{label:'Indicadores',data:pts.map(r=>({x:r.fis,y:r.fin,r})),backgroundColor:P[0]+'AA'},{label:'Avance financiero igual al físico',data:[{x:0,y:0},{x:100,y:100}],showLine:true,pointRadius:0,borderColor:'#8A8A99',borderDash:[6,4],borderWidth:1.5}],{scales:{x:{min:0,max:100,title:{display:true,text:'Avance físico (%)'}},y:{min:0,max:100,title:{display:true,text:'Avance financiero (%)'}}},tip:{callbacks:{label:c=>c.raw.r?c.raw.r.dep+': '+c.raw.r.ind.slice(0,60):'Línea de referencia: ambos avances iguales'}}});
+ const mf=pts.filter(r=>r.fin-r.fis>5).length,mfi=pts.filter(r=>r.fis-r.fin>5).length;
+ $('leyScat').innerHTML='<p><b>Cómo leerla:</b> cada punto es un indicador. Más a la derecha, más avance de la meta física; más arriba, más avance financiero. Sobre la línea punteada, ambos avanzan parejo; por encima, el avance financiero supera al físico; por debajo, el físico supera al financiero.</p><p>'+(pts.length?`De ${L(pts.length)} indicadores con ambos datos: ${L(mf)} con más avance financiero que físico, ${L(mfi)} con más avance físico que financiero y ${L(pts.length-mf-mfi)} parejos (diferencia de 5 puntos o menos).`:'Sin indicadores con ambos avances para esta selección.')+'</p>';
  table(d)}
 
 function table(d){
@@ -159,16 +174,16 @@ function table(d){
  rows.sort((a,b)=>{const x=sort.k==='al'?a.al.length:a[sort.k],y=sort.k==='al'?b.al.length:b[sort.k];return(x>y?1:x<y?-1:0)*sort.d});
  const pages=Math.max(1,Math.ceil(rows.length/PER));page=Math.min(page,pages-1);const sc=SC();
  $('thead').innerHTML='<tr>'+COLS.map(([k,l])=>`<th data-k="${k}">${l}${sort.k===k?(sort.d>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
- $('tbody').innerHTML=rows.slice(page*PER,page*PER+PER).map(r=>'<tr>'+COLS.map(([k,,t])=>t==='m'?`<td class="n">${money(r[k])}</td>`:t==='n'?`<td class="n">${L(r[k],2)}</td>`:t==='s'?`<td><span class="tag" style="background:${sc[r.sem]}">${pct(r.fis)}</span></td>`:t==='a'?`<td title="${r.al.join(' | ')}">${r.al.length||'—'}</td>`:`<td>${r[k]}${k==='dep'&&r.otras?' <small title="También en el POAI: '+r.otras+'">+</small>':''}</td>`).join('')+'</tr>').join('')||`<tr><td colspan="${COLS.length}">No hay indicadores con estos filtros. Prueba limpiarlos.</td></tr>`;
+ $('tbody').innerHTML=rows.slice(page*PER,page*PER+PER).map(r=>'<tr>'+COLS.map(([k,,t])=>t==='m'?`<td class="n">${money(r[k])}</td>`:t==='n'?`<td class="n">${L(r[k],2)}</td>`:t==='s'?`<td><span class="tag" style="background:${sc[r.sem]}">${pct(r.fis)}</span></td>`:t==='a'?`<td title="${r.al.join(' | ')}">${r.al.length||'—'}</td>`:`<td>${r[k]}${k==='dep'&&r.otras?' <small style="color:var(--muted)" title="Este indicador también aparece en el POAI de: '+r.otras+'">· comparte con otras dependencias</small>':''}</td>`).join('')+'</tr>').join('')||`<tr><td colspan="${COLS.length}">No hay indicadores con estos filtros. Prueba limpiarlos.</td></tr>`;
  $('pinfo').textContent=`Página ${page+1} de ${pages} · ${rows.length} indicadores`;$('prev').disabled=page===0;$('next').disabled=page>=pages-1;window._rows=rows}
 function schedule(){clearInterval(timer);if($('auto').checked)timer=setInterval(load,+$('interval').value*1000);LS.setItem('auto',$('auto').checked?'1':'0');LS.setItem('interval',$('interval').value)}
 
 document.addEventListener('click',e=>{const th=e.target.closest('th[data-k]');if(th){sort={k:th.dataset.k,d:sort.k===th.dataset.k?-sort.d:-1};table(filtered());return}
  const a=e.target.closest('.al');if(a){$('fAl').value=$('fAl').value===a.dataset.a?'':a.dataset.a;page=0;render()}});
-[...Object.keys(FIL),'fAl'].forEach(id=>$(id).addEventListener('change',()=>{page=0;render()}));
+[...Object.keys(FIL),'fAl'].forEach(id=>$(id).addEventListener('change',()=>{page=0;facets();render()}));
 $('q').addEventListener('input',()=>{page=0;table(filtered())});
 $('prev').onclick=()=>{page--;table(filtered())};$('next').onclick=()=>{page++;table(filtered())};
-$('reset').onclick=()=>{[...Object.keys(FIL),'fAl'].forEach(id=>$(id).value='');page=0;render()};
+$('reset').onclick=()=>{[...Object.keys(FIL),'fAl'].forEach(id=>$(id).value='');page=0;facets();render()};
 $('refresh').onclick=load;$('auto').onchange=$('interval').onchange=schedule;
 $('csv').onclick=()=>{const h=['Dependencia','Sector','Indicador','Meta programada','Meta ejecutada','Programado','Comprometido','Obligado','Pagado','Avance físico %','Avance financiero %','Alertas'];
  const esc=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
